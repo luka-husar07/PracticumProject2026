@@ -43,49 +43,57 @@ def pos_bin(i, N, num_bins=5):
 
 # %% Building an index of all slices
 import pandas as pd
-
-rows = []
-
-for f in nii_files:
-    subject_id = get_subject_id(f)
-    img = nib.load(f)
-    img = nib.as_closest_canonical(img)
-    data = img.get_fdata()
-
-    # Loop over each plane
-    for axis in range(3):
-        N = data.shape[axis]
-        plane_id = axis
-
-        for i in range(N):
-            b, p = pos_bin(i, N, num_bins)
-            rows.append({
-                "subject_id": subject_id,
-                "file_path": f,
-                "plane_id": plane_id,
-                "plane_name": plane_map[plane_id],
-                "slice_index": i,
-                "position": p,
-                "bin": b
-            })
-
-df = pd.DataFrame(rows)
-
-print(nii_files[:5])
-
-
-# %% Subject Level Split
 from sklearn.model_selection import train_test_split
 
-unique_subjects = df["subject_id"].unique()
-train_subjects, temp_subjects = train_test_split(unique_subjects, test_size=0.3, random_state=42)
-val_subjects, test_subjects = train_test_split(temp_subjects, test_size=0.5, random_state=42)
+csv_path = "slice_index.csv"
 
-df["split"] = "train"
-df.loc[df["subject_id"].isin(val_subjects), "split"] = "val"
-df.loc[df["subject_id"].isin(test_subjects), "split"] = "test"
+if os.path.exists(csv_path):
+    df = pd.read_csv(csv_path)
+    print("Loaded existing DataFrame")
+else:
 
-print("Split distribution:")
-print(df["split"].value_counts())
+    rows = []
 
-# %%
+    for f in nii_files:
+        subject_id = get_subject_id(f)
+        img = nib.load(f)
+        img = nib.as_closest_canonical(img)
+        data = img.get_fdata()
+
+        # Loop over each plane
+        for axis in range(3):
+            N = data.shape[axis]
+            plane_id = axis
+
+            for i in range(N):
+                b, p = pos_bin(i, N, num_bins)
+                rows.append({
+                    "subject_id": subject_id,
+                    "file_path": f,
+                    "plane_id": plane_id,
+                    "plane_name": plane_map[plane_id],
+                    "slice_index": i,
+                    "position": p,
+                    "bin": b
+                })
+
+    df = pd.DataFrame(rows)
+
+    # Subject Level Split
+
+    unique_subjects = df["subject_id"].unique()
+    train_subjects, temp_subjects = train_test_split(unique_subjects, test_size=0.3, random_state=42)
+    val_subjects, test_subjects = train_test_split(temp_subjects, test_size=0.5, random_state=42)
+
+    df["split"] = "train"
+    df.loc[df["subject_id"].isin(val_subjects), "split"] = "val"
+    df.loc[df["subject_id"].isin(test_subjects), "split"] = "test"
+
+    print("Split distribution:")
+    print(df["split"].value_counts())
+
+    df.to_csv(csv_path, index=False)
+    print("DataFrame successfully built")
+
+
+

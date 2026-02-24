@@ -1,5 +1,5 @@
 # %% Training Script for Slice Classification
-import preprocessing
+import preprocessing as pre
 import data_loader
 import model as model_module
 import torch
@@ -8,7 +8,7 @@ from torchvision import transforms
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') 
 
-model = model_module.SliceClassifier(num_bins=preprocessing.num_bins).to(device)
+model = model_module.SliceClassifier(num_bins=pre.num_bins).to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 criterion_bin = torch.nn.CrossEntropyLoss()
 
@@ -80,10 +80,16 @@ transform = transforms.Compose([
     transforms.RandomHorizontalFlip(),
 ])
 
-train_dataset = data_loader.SliceDataset(preprocessing.df[preprocessing.df['split'] == 'train'], transform=transform)
-val_dataset = data_loader.SliceDataset(preprocessing.df[preprocessing.df['split'] == 'val'], transform=transform)
-train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=32, shuffle=True)
-val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=32, shuffle=False)
+train_df = pre.df[pre.df['split'] == 'train'].sample(frac=0.1, random_state=42)
+val_df = pre.df[pre.df['split'] == 'val'].sample(frac=0.1, random_state=42)
+
+train_dataset = data_loader.SliceDataset(train_df, transform=transform)
+val_dataset = data_loader.SliceDataset(val_df, transform=transform)
+train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=64, shuffle=True, num_workers=0)
+val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=64, shuffle=False, num_workers=0)
+
+print(f"Using device: {device}")
+print(f"GPU: {torch.cuda.get_device_name(0)}")
 
 for epoch in range(num_epochs):
     train_loss = train_epoch(model, train_loader, optimizer, criterion_bin, device)
