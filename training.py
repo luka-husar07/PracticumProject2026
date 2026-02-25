@@ -80,20 +80,27 @@ transform = transforms.Compose([
     transforms.RandomHorizontalFlip(),
 ])
 
-train_df = pre.df[pre.df['split'] == 'train'].sample(frac=0.1, random_state=42)
-val_df = pre.df[pre.df['split'] == 'val'].sample(frac=0.1, random_state=42)
+train_df = pre.df[pre.df['split'] == 'train'].sort_values('file_path')
+val_df = pre.df[pre.df['split'] == 'val'].sort_values('file_path')
 
 train_dataset = data_loader.SliceDataset(train_df, transform=transform)
 val_dataset = data_loader.SliceDataset(val_df, transform=transform)
-train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=64, shuffle=True, num_workers=0)
-val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=64, shuffle=False, num_workers=0)
+train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=0)
+val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=32, shuffle=False, num_workers=0)
 
 print(f"Using device: {device}")
 print(f"GPU: {torch.cuda.get_device_name(0)}")
 
+best_val_loss = float('inf')
+
 for epoch in range(num_epochs):
     train_loss = train_epoch(model, train_loader, optimizer, criterion_bin, device)
     val_metrics = validate(model, val_loader, device)
+
+    if val_metrics['val_loss'] < best_val_loss:
+        best_val_loss = val_metrics['val_loss']
+        torch.save(model.state_dict(), 'best_model.pth')
+        print("Model saved!")
 
     print(f"Epoch {epoch+1}/{num_epochs} \n"
           f"Train Loss: {train_loss:.4f}\n"
